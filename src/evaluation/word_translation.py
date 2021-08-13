@@ -90,7 +90,8 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
     evaluate the translation accuracy using the precision@k.
     """
     if dico_eval == 'default':
-        path = os.path.join(DIC_EVAL_PATH, '%s-%s.5000-6500.txt' % (lang1, lang2))
+        # path = os.path.join(DIC_EVAL_PATH, '%s-%s.5000-6500.txt' % (lang1, lang2))
+        path = os.path.join(DIC_EVAL_PATH, '%s_%s_dict.txt' % (lang1, lang2))
     else:
         path = dico_eval
     dico = load_dictionary(path, word2id1, word2id2)
@@ -136,6 +137,24 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
         scores.mul_(2)
         scores.sub_(average_dist1[dico[:, 0]][:, None])
         scores.sub_(average_dist2[None, :])
+    
+    # relaxed contextual dissimilarity measure
+    elif method.startswith('rcsls_knn_'):
+        # average distances to k nearest neighbors
+        knn = method[len('rcsls_knn_'):]
+        assert knn.isdigit()
+        knn = int(knn)
+        average_dist1 = get_nn_avg_dist(emb2, emb1, knn)
+        average_dist2 = get_nn_avg_dist(emb1, emb2, knn)
+        average_dist1 = torch.from_numpy(average_dist1).type_as(emb1)
+        average_dist2 = torch.from_numpy(average_dist2).type_as(emb2)
+        # queries / scores
+        query = emb1[dico[:, 0]]
+        scores = query.mm(emb2.transpose(0, 1))
+        # need to implement rcsls criterion
+        # scores.mul_(2)
+        # scores.sub_(average_dist1[dico[:, 0]][:, None])
+        # scores.sub_(average_dist2[None, :])
 
     else:
         raise Exception('Unknown method: "%s"' % method)
@@ -155,4 +174,4 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
                     (len(matching), method, k, precision_at_k))
         results.append(('precision_at_%i' % k, precision_at_k))
 
-    return results
+    return results, dico[:, 0], top_k_matches

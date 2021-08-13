@@ -13,7 +13,7 @@ import torch
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from .utils import get_optimizer, load_embeddings, normalize_embeddings, export_embeddings
+from .utils import get_optimizer, load_embeddings, normalize_embeddings, export_embeddings, export_pair_translations
 from .utils import clip_parameters
 from .dico_builder import build_dictionary
 from .evaluation.word_translation import DIC_EVAL_PATH, load_identical_char_dico, load_dictionary
@@ -240,7 +240,7 @@ class Trainer(object):
         assert to_reload.size() == W.size()
         W.copy_(to_reload.type_as(W))
 
-    def export(self):
+    def export(self, var_exp_trans):
         """
         Export embeddings.
         """
@@ -259,8 +259,12 @@ class Trainer(object):
         bs = 4096
         logger.info("Map source embeddings to the target space ...")
         for i, k in enumerate(range(0, len(src_emb), bs)):
-            x = Variable(src_emb[k:k + bs], volatile=True)
+            with torch.no_grad():
+                x = Variable(src_emb[k:k + bs])
             src_emb[k:k + bs] = self.mapping(x.cuda() if params.cuda else x).data.cpu()
 
         # write embeddings to the disk
         export_embeddings(src_emb, tgt_emb, params)
+
+        # write pair translations to the disk
+        export_pair_translations(params, var_exp_trans)

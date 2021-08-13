@@ -455,3 +455,23 @@ def export_embeddings(src_emb, tgt_emb, params):
         torch.save({'dico': params.src_dico, 'vectors': src_emb}, src_path)
         logger.info('Writing target embeddings to %s ...' % tgt_path)
         torch.save({'dico': params.tgt_dico, 'vectors': tgt_emb}, tgt_path)
+
+def export_pair_translations(params, var_exp_trans):
+    key_word2id1 = list(params.src_dico.word2id1.keys())
+    key_word2id2 = list(params.tgt_dico.word2id2.keys())
+
+    for var in var_exp_trans:
+        assert len(var['src_dico']) == len(var['id_top_matches'])
+
+        export_path = os.path.join(params.exp_path, '%s-translation-%s_%s.txt' % (var['method'], params.src_lang, params.tgt_lang))
+        assert os.path.isfile(export_path)
+
+        logger.info('Writing pair translation to %s ...' % export_path)
+        src_dico = var['src_dico']
+        id_top_matches = var['id_top_matches']
+        with open(export_path, 'w+', encoding='utf-8') as f:
+            for i in range(len(src_dico)):
+                trans = list(key_word2id2[x] for x in id_top_matches[i])
+                line = "{} {}\n".format(key_word2id1[src_dico[i]], trans)
+                f.write(line)
+        f.close()
