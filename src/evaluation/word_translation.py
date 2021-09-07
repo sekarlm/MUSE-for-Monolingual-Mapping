@@ -52,9 +52,13 @@ def load_dictionary(path, word2id1, word2id2):
     not_found = 0
     not_found1 = 0
     not_found2 = 0
+    n_gold_std = 0
 
-    with io.open(path, 'r', encoding='utf-8') as f:
-        for index, line in enumerate(f):
+    # with io.open(path, 'r', encoding='utf-8') as f:
+    with open(path, 'r', encoding='utf-8') as f:
+        data = f.readlines()
+        n_gold_std = len(set([x.rstrip().split()[0] for x in data]))
+        for index, line in enumerate(data):
             assert line == line.lower()
             parts = line.rstrip().split()
             if len(parts) < 2:
@@ -81,7 +85,7 @@ def load_dictionary(path, word2id1, word2id2):
         dico[i, 0] = word2id1[word1]
         dico[i, 1] = word2id2[word2]
 
-    return dico
+    return dico, n_gold_std
 
 
 def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, method, dico_eval):
@@ -94,7 +98,7 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
         path = os.path.join(DIC_EVAL_PATH, '%s_%s_dict.txt' % (lang1, lang2))
     else:
         path = dico_eval
-    dico = load_dictionary(path, word2id1, word2id2)
+    dico, n_gold_std = load_dictionary(path, word2id1, word2id2)
     dico = dico.cuda() if emb1.is_cuda else dico
 
     assert dico[:, 0].max() < emb1.size(0)
@@ -160,18 +164,36 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
         raise Exception('Unknown method: "%s"' % method)
 
     results = []
+    matching_at_k = {}
     top_matches = scores.topk(10, 1, True)[1]
     for k in [1, 5, 10]:
         top_k_matches = top_matches[:, :k]
         _matching = (top_k_matches == dico[:, 1][:, None].expand_as(top_k_matches)).sum(1).cpu().numpy()
+        print("_matching ", len(_matching))
+
         # allow for multiple possible translations
         matching = {}
+        trans_match = []
         for i, src_id in enumerate(dico[:, 0].cpu().numpy()):
             matching[src_id] = min(matching.get(src_id, 0) + _matching[i], 1)
+            trans_match.append((src_id, min(matching.get(src_id, 0) + _matching[i], 1)))
+
         # evaluate precision@k
         precision_at_k = 100 * np.mean(list(matching.values()))
         logger.info("%i source words - %s - Precision at k = %i: %f" %
                     (len(matching), method, k, precision_at_k))
         results.append(('precision_at_%i' % k, precision_at_k))
 
-    return results, dico[:, 0], top_k_matches
+        # evaluate recall@k
+        recall_at_k = 100 * np.sum(list(matching.values())) / n_gold_std
+        logger.info("%i source words - %s - Recall at k = %i: %f" %
+                    (len(matching), method, k, recall_at_k))
+        results.append(('recall_at_%i' % k, recall_at_k))
+
+        # evaluate f1-score@k
+        f1score_at_k = 2 * (precision_at_k * recall_at_k) / (precision_at_k + recall_at_k)
+        logger.info("%i source words - %s - F1-Score at k = %i: %f" %
+                    (len(matching), method, k, f1score_at_k))
+        results.append(('f1score_at_%i' % k, f1score_at_k))
+
+    return results, dico[:, 0], top_k_matches, matching_at_k
