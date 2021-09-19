@@ -108,8 +108,10 @@ class Evaluator(object):
         """
         Evaluation on word translation.
         """
+        print("WORD_TRANSLATION")
         # mapped word embeddings
         src_emb = self.mapping(self.src_emb.weight).data
+        print(src_emb.size())
         tgt_emb = self.tgt_emb.weight.data
 
         for method in ['nn', 'csls_knn_10']:
@@ -120,7 +122,7 @@ class Evaluator(object):
                 dico_eval=self.params.dico_eval
             )
             to_log.update([('%s-%s' % (k, method), v) for k, v in results])
-            var = {'method': method, 'src_dico': dico_of_src, 'id_top_matches': top_matches, 'matching': matching}
+            var = {'method': method, 'src_dico': dico_of_src, 'top_matches': top_matches, 'matching': matching}
             var_exp_trans.append(var)
 
     def sent_translation(self, to_log):

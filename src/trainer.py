@@ -66,10 +66,16 @@ class Trainer(object):
             tgt_ids = tgt_ids.cuda()
 
         # get word embeddings
-        src_emb = self.src_emb(Variable(src_ids, volatile=True))
-        tgt_emb = self.tgt_emb(Variable(tgt_ids, volatile=True))
-        src_emb = self.mapping(Variable(src_emb.data, volatile=volatile))
-        tgt_emb = Variable(tgt_emb.data, volatile=volatile)
+        with torch.no_grad():
+            src_emb = self.src_emb(Variable(src_ids))
+            tgt_emb = self.tgt_emb(Variable(tgt_ids))
+        if volatile:
+            with torch.no_grad():
+                src_emb = self.mapping(Variable(src_emb.data))
+                tgt_emb = Variable(tgt_emb.data)
+        else:
+            src_emb = self.mapping(Variable(src_emb.data))
+            tgt_emb = Variable(tgt_emb.data)
 
         # input / target
         x = torch.cat([src_emb, tgt_emb], 0)
@@ -144,13 +150,13 @@ class Trainer(object):
         # use one of the provided dictionary
         elif dico_train == "default":
             filename = '%s-%s.0-5000.txt' % (self.params.src_lang, self.params.tgt_lang)
-            self.dico = load_dictionary(
+            self.dico, _ = load_dictionary(
                 os.path.join(DIC_EVAL_PATH, filename),
                 word2id1, word2id2
             )
         # dictionary provided by the user
         else:
-            self.dico = load_dictionary(dico_train, word2id1, word2id2)
+            self.dico, _ = load_dictionary(dico_train, word2id1, word2id2)
 
         # cuda
         if self.params.cuda:

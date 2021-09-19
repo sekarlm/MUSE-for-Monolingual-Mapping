@@ -311,6 +311,8 @@ def read_txt_embeddings(params, source, full_vocab):
     embeddings = embeddings.cuda() if (params.cuda and not full_vocab) else embeddings
 
     assert embeddings.size() == (len(dico), params.emb_dim)
+    print("LOAD EMBEDDING")
+    print("embeddings.size() :", embeddings.size())
     return dico, embeddings
 
 
@@ -457,28 +459,29 @@ def export_embeddings(src_emb, tgt_emb, params):
         torch.save({'dico': params.tgt_dico, 'vectors': tgt_emb}, tgt_path)
 
 def export_pair_translations(params, var_exp_trans):
-    # key_word2id1 = list(params.src_dico.word2id1.keys())
-    # key_word2id2 = list(params.tgt_dico.word2id2.keys())
+    #key_word2id1 = list(params.src_dico.word2id.keys())
+    #key_word2id2 = list(params.tgt_dico.word2id.keys())
 
-    id2word1 = params.src_dico.id2word1
-    id2word2 = params.tgt_dico.id2word2
+    id2word1 = params.src_dico.id2word
+    id2word2 = params.tgt_dico.id2word
 
     for var in var_exp_trans:
-        assert len(var['src_dico']) == len(var['id_top_matches'])
+        assert len(var['src_dico']) == len(var['top_matches'])
 
-        # export_path = os.path.join(params.exp_path, '%s-translation-%s_%s.txt' % (var['method'], params.src_lang, params.tgt_lang))
+        #export_path = os.path.join(params.exp_path, '%s-translation-%s_%s.txt' % (var['method'], params.src_lang, params.tgt_lang))
         invalid_trans_path = os.path.join(params.exp_path, '%s-%s-trans-%s_%s.txt' % (var['method'], 'invalid', params.src_lang, params.tgt_lang))
         valid_trans_path = os.path.join(params.exp_path, '%s-%s-trans-%s_%s.txt' % (var['method'], 'valid', params.src_lang, params.tgt_lang))
-        assert os.path.isfile(invalid_trans_path)
-        assert os.path.isfile(valid_trans_path)
+        #assert os.path.isfile(invalid_trans_path)
+        #assert os.path.isfile(valid_trans_path)
 
-        logger.info('Writing pair translation to %s and %s ...' % invalid_trans_path, valid_trans_path)
+        logger.info('Writing pair translation to {} and {} ...'.format(invalid_trans_path, valid_trans_path))
 
         invalid = open(invalid_trans_path, 'w+', encoding='utf-8')
         valid = open(valid_trans_path, 'w+', encoding='utf-8')
 
         matching = var['matching']
-        top_matches = var['id_top_matches']
+
+        top_matches = var['top_matches']
         for k in [1, 5, 10]:
             invalid.write("Pair translation for k={}\n".format(k))
             valid.write("Pair translation for k={}\n".format(k))
@@ -492,30 +495,30 @@ def export_pair_translations(params, var_exp_trans):
 
                     trans = list(id2word2[idx] for idx in id_trans)
                     invalid.write("{} {}\n".format(id2word1[key], trans))
-                    
+
                 elif val == 1:
                     id_trans = top_matches[i][:k].tolist()
                     valid.write("{} {}\n".format(key, id_trans))
 
                     trans = list(id2word2[idx] for idx in id_trans)
                     valid.write("{} {}\n".format(id2word1[key], trans))
-                
+
                 else:
                     print("invalid code")
-                
+
                 i += 1
-            
+
             invalid.write("\n\n")
             valid.write("\n\n")
-        
+
         invalid.close()
         valid.close()
 
-        # src_dico = var['src_dico']
-        # id_top_matches = var['id_top_matches']
-        # with open(export_path, 'w+', encoding='utf-8') as f:
-        #     for i in range(len(src_dico)):
-        #         trans = list(key_word2id2[x] for x in id_top_matches[i])
-        #         line = "{} {}\n".format(key_word2id1[src_dico[i]], trans)
-        #         f.write(line)
-        # f.close()
+        #src_dico = var['src_dico']
+        #id_top_matches = var['id_top_matches']
+        #with open(export_path, 'w+', encoding='utf-8') as f:
+        #    for i in range(len(src_dico)):
+        #        trans = list(key_word2id2[x] for x in id_top_matches[i])
+        #        line = "{} {}\n".format(key_word2id1[src_dico[i]], trans)
+        #        f.write(line)
+        #f.close()

@@ -3,7 +3,7 @@
 #
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
-#
+
 
 import os
 import json
@@ -35,7 +35,7 @@ parser.add_argument("--export", type=str, default="txt", help="Export embeddings
 parser.add_argument("--src_lang", type=str, default='en', help="Source language")
 parser.add_argument("--tgt_lang", type=str, default='es', help="Target language")
 parser.add_argument("--emb_dim", type=int, default=300, help="Embedding dimension")
-parser.add_argument("--max_vocab", type=int, default=44000, help="Maximum vocabulary size (-1 to disable)")
+parser.add_argument("--max_vocab", type=int, default=-1, help="Maximum vocabulary size (-1 to disable)")
 # training refinement
 parser.add_argument("--n_refinement", type=int, default=5, help="Number of refinement iterations (0 to disable the refinement procedure)")
 # dictionary creation parameters (for refinement)
@@ -64,6 +64,7 @@ assert params.dico_max_size == 0 or params.dico_max_size < params.dico_max_rank
 assert params.dico_max_size == 0 or params.dico_max_size > params.dico_min_size
 assert os.path.isfile(params.src_emb)
 assert os.path.isfile(params.tgt_emb)
+print(params.dico_eval)
 assert params.dico_eval == 'default' or os.path.isfile(params.dico_eval)
 assert params.export in ["", "txt", "pth"]
 
@@ -72,6 +73,9 @@ logger = initialize_exp(params)
 src_emb, tgt_emb, mapping, _ = build_model(params, False)
 trainer = Trainer(src_emb, tgt_emb, mapping, None, params)
 evaluator = Evaluator(trainer)
+
+# for  pair translation
+var_exp_trans = []
 
 # load a training dictionary. if a dictionary path is not provided, use a default
 # one ("default") or create one based on identical character strings ("identical_char")
@@ -98,7 +102,7 @@ for n_iter in range(params.n_refinement + 1):
 
     # embeddings evaluation
     to_log = OrderedDict({'n_iter': n_iter})
-    evaluator.all_eval(to_log)
+    evaluator.all_eval(to_log, var_exp_trans)
 
     # JSON log / save best model / end of epoch
     logger.info("__log__:%s" % json.dumps(to_log))
@@ -109,4 +113,4 @@ for n_iter in range(params.n_refinement + 1):
 # export embeddings
 if params.export:
     trainer.reload_best()
-    trainer.export()
+    trainer.export(var_exp_trans)

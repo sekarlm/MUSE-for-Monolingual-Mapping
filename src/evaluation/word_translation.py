@@ -1,3 +1,4 @@
+
 # Copyright (c) 2017-present, Facebook, Inc.
 # All rights reserved.
 #
@@ -52,9 +53,8 @@ def load_dictionary(path, word2id1, word2id2):
     not_found = 0
     not_found1 = 0
     not_found2 = 0
-    n_gold_std = 0
 
-    # with io.open(path, 'r', encoding='utf-8') as f:
+    #with io.open(path, 'r', encoding='utf-8') as f:
     with open(path, 'r', encoding='utf-8') as f:
         data = f.readlines()
         n_gold_std = len(set([x.rstrip().split()[0] for x in data]))
@@ -95,14 +95,18 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
     """
     if dico_eval == 'default':
         # path = os.path.join(DIC_EVAL_PATH, '%s-%s.5000-6500.txt' % (lang1, lang2))
-        path = os.path.join(DIC_EVAL_PATH, '%s_%s_dict.txt' % (lang1, lang2))
+        path = os.path.join(DIC_EVAL_PATH, '%s-%s-test.txt' % (lang1, lang2))
+        print(path)
     else:
         path = dico_eval
     dico, n_gold_std = load_dictionary(path, word2id1, word2id2)
     dico = dico.cuda() if emb1.is_cuda else dico
 
+    n_dico = len(dico)
+
     assert dico[:, 0].max() < emb1.size(0)
     assert dico[:, 1].max() < emb2.size(0)
+    print("WORD TRANSLATION")
 
     # normalize word embeddings
     emb1 = emb1 / emb1.norm(2, 1, keepdim=True).expand_as(emb1)
@@ -141,24 +145,6 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
         scores.mul_(2)
         scores.sub_(average_dist1[dico[:, 0]][:, None])
         scores.sub_(average_dist2[None, :])
-    
-    # relaxed contextual dissimilarity measure
-    elif method.startswith('rcsls_knn_'):
-        # average distances to k nearest neighbors
-        knn = method[len('rcsls_knn_'):]
-        assert knn.isdigit()
-        knn = int(knn)
-        average_dist1 = get_nn_avg_dist(emb2, emb1, knn)
-        average_dist2 = get_nn_avg_dist(emb1, emb2, knn)
-        average_dist1 = torch.from_numpy(average_dist1).type_as(emb1)
-        average_dist2 = torch.from_numpy(average_dist2).type_as(emb2)
-        # queries / scores
-        query = emb1[dico[:, 0]]
-        scores = query.mm(emb2.transpose(0, 1))
-        # need to implement rcsls criterion
-        # scores.mul_(2)
-        # scores.sub_(average_dist1[dico[:, 0]][:, None])
-        # scores.sub_(average_dist2[None, :])
 
     else:
         raise Exception('Unknown method: "%s"' % method)
@@ -168,8 +154,13 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
     top_matches = scores.topk(10, 1, True)[1]
     for k in [1, 5, 10]:
         top_k_matches = top_matches[:, :k]
+        n_relevant = 0
+        for val in top_k_matches:
+            tmp = set(val.tolist()) - set(dico[:, 1])
+            if len(tmp) < 1:
+                print(val.tolist())
+        print("n_relevant :", n_relevant)
         _matching = (top_k_matches == dico[:, 1][:, None].expand_as(top_k_matches)).sum(1).cpu().numpy()
-        print("_matching ", len(_matching))
 
         # allow for multiple possible translations
         matching = {}
@@ -177,6 +168,8 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
         for i, src_id in enumerate(dico[:, 0].cpu().numpy()):
             matching[src_id] = min(matching.get(src_id, 0) + _matching[i], 1)
             trans_match.append((src_id, min(matching.get(src_id, 0) + _matching[i], 1)))
+
+        matching_at_k[k] = trans_match
 
         # evaluate precision@k
         precision_at_k = 100 * np.mean(list(matching.values()))
