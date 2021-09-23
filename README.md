@@ -27,36 +27,21 @@ First, monolingual mapping learns word vector representation from each monolingu
 
 ## How to use?
 ### 1. Data Preparation
-You can collect [Javanese](https://dumps.wikimedia.org/suwiki/latest/suwiki-latest-pages-articles.xml.bz2) and [Sundanese](https://dumps.wikimedia.org/jvwiki/latest/jvwiki-latest-pages-articles.xml.bz2) corpus from Wikipedia dumps articles file. Then, preprocess the data using following command.
-- Sentence Windowing
+Prepare word embedding of Javanese and Sundanese. For Word2Vec and feature extraction BERT, you can use our code from [here](https://github.com/sekarlm/Pseudo-Bilingual-Corpora). For FastText, you can use Javanese and Sundanese pre-trained word embedding from [here](https://fasttext.cc/docs/en/pretrained-vectors.html).
+### 2. Monolingual Mapping, Translation Retrieval, and Evaluation
+Mapping Javanese embedding to Sundanese embedding using supervised MUSE and unsupervised MUSE. We have made some changes to the MUSE original code. Here is the changes.
+- Solved deprecated code
+- Added script to write the translation pairs into a file
+- Added recall and f1-score calculation as evaliation metrics
+
+**Supervised MUSE**
 ```
-python3 corpus_windowing.py <corpus_file> <output_file>
+python3 supervised.py --src_lang jv --tgt_lang su --src_emb data/vectors/jv.ft.txt --tgt_emb data/vectors/su.ft.txt --n_refinement 5 --dico_train data/crosslingual/dictionaries/jv-su-train.txt --dico_eval data/crosslingual/dictionaries/jv-su-test.txt
+
 ```
-- Remove English Words
+
+**Unsupervised MUSE**
 ```
-python3 data_cleaning.py <embedding_file> <english_words_file> <output_file>
-``` 
-### 2. Merge: Length-ratio Shuffle
-Create a pseudo-bilingual corpus using length-ratio shuffle method.
-```
-python3 merge.py <input_file1> <input_file2> <output_file>
-```
-### 3. Word Embedding
-Create word representasion from a pseudo-bilingual corpus. We use Word2Vec, FastText, and feature extraction on pre-trained Multilingual BERT model.
-- Word2Vec
-```
-python3 word2vec.py <corpus> <output_vector_file>
-```
-- FastText
-```
-python3 fasttext.py <corpus> <output_vector_file>
-```
-- Multilingual BERT
-```
-python3 mBERT.py <corpus> <output_vector_file>
-```
-### 4. Translation Retrieval and Evaluation
-Generate pair translation and evaluate the translation result.
-```
-python3 eval_pseudo_bilingual.py <emb_file> <dict_file> <file_wrong> <file_corect>
+python3 unsupervised.py --src_lang jv --tgt_lang su --src_emb data/vectors/jv.ft.txt --tgt_emb data/vectors/su.ft.txt --n_refinement 5 --n_epochs 5 --dico_eval data/crosslingual/dictionaries/jv-su-test.txt
+
 ```
