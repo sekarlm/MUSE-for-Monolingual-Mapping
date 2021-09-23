@@ -1,7 +1,7 @@
 # MUSE data and result folders
 
 #data/crosslingual/
-data/monolingual/
+data/vectors/
 dumped/
 
 # Created by https://www.gitignore.io/api/vim,python

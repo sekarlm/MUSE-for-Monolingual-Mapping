@@ -154,7 +154,20 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
     top_matches = scores.topk(10, 1, True)[1]
     for k in [1, 5, 10]:
         top_k_matches = top_matches[:, :k]
+
+        listed_dico = [ x for sub in dico[:, 1][:, None].cpu().numpy() for x in sub ]
         n_relevant = 0
+
+        for values in top_k_matches.cpu().numpy():
+            for sub_val in values:
+                if sub_val in listed_dico:
+                    n_relevant += 1
+                    break
+
+        print("listed_dico :", len(listed_dico))
+        print("top_k_matches :", len(top_k_matches))
+        print("n_relevant :", n_relevant)
+
         for val in top_k_matches:
             tmp = set(val.tolist()) - set(dico[:, 1])
             if len(tmp) < 1:
@@ -172,13 +185,25 @@ def get_word_translation_accuracy(lang1, word2id1, emb1, lang2, word2id2, emb2, 
         matching_at_k[k] = trans_match
 
         # evaluate precision@k
-        precision_at_k = 100 * np.mean(list(matching.values()))
+        #precision_at_k = 100 * np.mean(list(matching.values()))
+        #logger.info("%i source words - %s - Precision at k = %i: %f" %
+        #            (len(matching), method, k, precision_at_k))
+        #results.append(('precision_at_%i' % k, precision_at_k))
+
+        # evaluate recall@k
+        #recall_at_k = 100 * np.sum(list(matching.values())) / n_gold_std
+        #logger.info("%i source words - %s - Recall at k = %i: %f" %
+        #            (len(matching), method, k, recall_at_k))
+        #results.append(('recall_at_%i' % k, recall_at_k))
+
+        # evaluate precision@k
+        precision_at_k = 100 * np.sum(list(matching.values())) / n_relevant
         logger.info("%i source words - %s - Precision at k = %i: %f" %
                     (len(matching), method, k, precision_at_k))
         results.append(('precision_at_%i' % k, precision_at_k))
 
         # evaluate recall@k
-        recall_at_k = 100 * np.sum(list(matching.values())) / n_gold_std
+        recall_at_k = 100 * np.mean(list(matching.values()))
         logger.info("%i source words - %s - Recall at k = %i: %f" %
                     (len(matching), method, k, recall_at_k))
         results.append(('recall_at_%i' % k, recall_at_k))
