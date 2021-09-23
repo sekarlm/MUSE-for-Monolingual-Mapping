@@ -8,7 +8,7 @@ First, monolingual mapping learns word vector representation from each monolingu
 
 ## Architecture Design
 <p align="center">
-    <img src="contents/monolingual-mapping fix.PNG" alt="Model Architecture" height="auto">
+    <img src="contents/monolingual mapping fix.png" alt="Model Architecture" height="auto">
 </p>
 
 1. The Javanese and Sundanese corpus preprocessed. The preprocessing process consist of deleting English words and sentence windowing. 
